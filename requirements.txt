@@ -1,0 +1,13 @@
+cython~=0.29
+cryptography~=3.0
+authlib~=0.14
+click~=7.1
+simplejson~=3.17
+uvloop~=0.14
+uvicorn~=0.11
+pydantic~=1.6
+httpx~=0.13
+python-json-logger~=0.1
+aiojobs~=0.2.2
+kubernetes-asyncio~=11.3
+uvloop~=0.14
