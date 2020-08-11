@@ -1,7 +1,7 @@
 import asyncio
 import json
 from types import TracebackType
-from typing import Any, Dict, Optional, Type
+from typing import Optional, Type
 
 import aiojobs
 from aiojobs import Scheduler

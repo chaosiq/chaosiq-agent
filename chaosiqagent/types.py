@@ -1,12 +1,8 @@
 from enum import Enum
-from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, BaseSettings, Field, UUID4, AnyUrl
 
 __all__ = ["Config", "Job"]
-
-
-Config = Dict[str, Optional[str]]
 
 
 class LogFormatEnum(str, Enum):
