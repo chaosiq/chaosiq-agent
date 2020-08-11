@@ -52,7 +52,7 @@ To run the application locally, simply run the following commands:
 
 ```
 $ source .venv/bin/activate
-$ chaosiq-agent run --config=.config/.env.sample
+$ chaosiq-agent run --config=config/.env.sample
 ```
 
 ## Run the tests
