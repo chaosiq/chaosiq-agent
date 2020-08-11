@@ -139,3 +139,9 @@ dmypy.json
 
 # vscode
 .vscode/
+
+# Pycharm
+.idea/
+
+# local configs - other than sample one
+config/.env*

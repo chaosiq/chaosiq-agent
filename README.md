@@ -20,6 +20,19 @@ To develop on this project, you must have the following dependencies setup:
 * [Python 3.8](https://www.python.org/) or greater
 * A virtual environment with `pip`
 
+Once that virtual environment is created, install the dependencies into it:
+
+```
+$ pip install -U -r requirements.txt -r requirements-dev.txt
+```
+
+Then deploy the project source in "development mode" into the virtual
+environment:
+
+```
+$ pip install -e .
+```
+
 ### Setup a virtual environment
 
 You may create a local virtual environment as follows:
