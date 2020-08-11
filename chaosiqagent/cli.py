@@ -12,13 +12,13 @@ from .settings import load_settings
 
 @click.group()
 @click.version_option(version=__version__)
-def cli() -> None:
+def cli() -> None:  # pragma: no cover
     pass
 
 
 @cli.command()
 @click.option('--config', help='Configuration .env file.')
-def run(config: str = None) -> None:
+def run(config: str = None) -> None:  # pragma: no cover
     """
     Runs the application.
     """
