@@ -1,7 +1,11 @@
 import asyncio
+import httpcore
+import httpx
 import signal
 
+from . import __version__ as version
 from .backend import get_backend
+from .client import get_client
 from .job import Jobs
 from .log import logger
 from .types import Config
@@ -11,9 +15,11 @@ __all__ = ["Agent"]
 
 class Agent:
     def __init__(self, config: Config) -> None:
+        self.client = get_client(config)
         self.backend = get_backend(config)
         self.jobs = Jobs(config, self.backend)
         self._running = False
+        self.action_url = "/agent/actions"
 
     @property
     def running(self) -> bool:
@@ -21,6 +27,8 @@ class Agent:
 
     async def setup(self) -> None:
         await asyncio.wait([
+            self.register(),
+            self.connect(),
             self.jobs.setup(),
             self.backend.setup()
         ], return_when=asyncio.ALL_COMPLETED)
@@ -30,6 +38,7 @@ class Agent:
         Gracefully cleaning up the jobs consumer and its backend.
         """
         await asyncio.wait([
+            self.disconnect(),
             self.jobs.cleanup(),
             self.backend.cleanup()
         ], return_when=asyncio.ALL_COMPLETED)
@@ -54,3 +63,36 @@ class Agent:
     async def terminate(self) -> None:
         logger.info("Terminating agent...")
         await self.cleanup()
+
+    async def register(self) -> None:
+        """
+        Registers the agent to ChaosIQ
+        """
+        body = {
+            "action": "register",
+            "payload": {
+                "type": self.backend.name,
+                "version": f"{version}",
+                "meta": {}
+            },
+        }
+        try:
+            await self.client.post(self.action_url, json=body)
+        except (httpx.HTTPError, httpcore.ConnectError):
+            logger.critical("Agent was not able to register to ChaosIQ.")
+            logger.warning(
+                "Agent will not work properly if not connected to ChaosIQ.")
+
+    async def connect(self) -> None:
+        """
+        Indicate the agent is connected to ChaosIQ.
+        It can now receive jobs.
+        """
+        await self.client.post(self.action_url, json={"action": "connect"})
+
+    async def disconnect(self) -> None:
+        """
+        Indicate the agent is disconnected from ChaosIQ.
+        It cannot be used anymore for running jobs.
+        """
+        await self.client.post(self.action_url, json={"action": "disconnect"})

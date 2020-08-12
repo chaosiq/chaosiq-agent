@@ -2,7 +2,10 @@ from typing import Literal
 
 from pydantic import BaseModel, BaseSettings, Field, UUID4, AnyUrl
 
-__all__ = ["Config", "Job"]
+__all__ = ["Config", "Job", "Backend"]
+
+
+Backend = Literal["null", "kubernetes"]
 
 
 class Config(BaseSettings):
@@ -10,8 +13,9 @@ class Config(BaseSettings):
     log_format: Literal["plain", "structured"]
     agent_url: AnyUrl = Field(..., env='AGENT_URL')
     agent_access_token: str = Field(..., env='AGENT_ACCESS_TOKEN')
-    agent_backend: Literal["null", "kubernetes"] = Field(
+    agent_backend: Backend = Field(
         "null", env='AGENT_BACKEND')
+    verify_tls: bool = Field(False, env='VERIFY_TLS')
 
 
 class Job(BaseModel):

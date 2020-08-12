@@ -1,5 +1,5 @@
 from ..log import logger
-from ..types import Config, Job
+from ..types import Config, Job, Backend
 
 __all__ = ["BaseBackend", "NullBackend"]
 
@@ -7,6 +7,10 @@ __all__ = ["BaseBackend", "NullBackend"]
 class BaseBackend:
     def __init__(self, config: Config) -> None:
         self.config = config
+
+    @property
+    def name(self) -> Backend:
+        return self.config.agent_backend
 
     async def setup(self) -> None:
         raise NotImplementedError()
