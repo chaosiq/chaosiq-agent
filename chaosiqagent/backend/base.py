@@ -24,10 +24,10 @@ class BaseBackend:
 
 class NullBackend(BaseBackend):
     async def setup(self) -> None:
-        logger.info("Starting 'null' backend")
+        logger.info(f"Starting '{self.name}' backend")
 
     async def cleanup(self) -> None:
-        logger.info("Terminating 'null' backend")
+        logger.info(f"Terminating '{self.name}' backend")
 
     async def process_job(self, job: Job) -> None:
-        logger.info(f"NullBackend got job: {str(job)}")
+        logger.info(f"Backend '{self.name}' got job: {str(job)}")
