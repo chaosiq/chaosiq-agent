@@ -2,7 +2,7 @@ import httpx
 
 from .types import Config
 
-__all__ = ["get_client"]
+__all__ = ["get_client", "ChaosIQClient"]
 
 
 class ChaosIQClient(httpx.AsyncClient):

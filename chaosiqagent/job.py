@@ -1,14 +1,14 @@
 import asyncio
 import json
 from types import TracebackType
-from typing import Optional, Type
+from typing import Optional, Type, Dict, Any
 
 import aiojobs
 from aiojobs import Scheduler
 from pydantic import ValidationError
 
 from .backend import BaseBackend
-from .client import get_client
+from .client import ChaosIQClient
 from .log import logger
 from .types import Config, Job
 
@@ -20,7 +20,6 @@ class Jobs:
         self.sched: Scheduler = None
         self.config = config
         self.backend = backend
-        self.client = get_client(config)
         self._running = False
 
     async def __aenter__(self) -> 'Jobs':
@@ -44,7 +43,9 @@ class Jobs:
         Create the underlying scheduler to handle jobs.
         """
         logger.info("Creating job consumer queue")
-        self.sched = await asyncio.wait_for(aiojobs.create_scheduler(), None)
+        self.sched = await asyncio.wait_for(
+            aiojobs.create_scheduler(
+                exception_handler=self.aiojobs_exception), None)
 
     async def cleanup(self) -> None:
         """
@@ -60,37 +61,38 @@ class Jobs:
         """
         logger.info("Consuming jobs...")
 
-        url = "/agent/jobs/queue/next"
         self._running = True
         while self.running and not self.sched.closed:
 
-            async with self.client as client:
-                resp = await client.get(url)
+            async with ChaosIQClient(self.config) as client:
+                resp = await client.get("/agent/jobs/queue/next")
                 if resp.status_code == 204:
                     # wait when queue is empty
                     await asyncio.sleep(5)
                     continue
 
-                if resp.status_code >= 400:
-                    logger.info(
-                        f"Failed to fetch jobs from ChaosIQ: {resp.text}")
-                    continue
+            if resp.status_code >= 400:
+                logger.info(
+                    f"Failed to fetch jobs from ChaosIQ: {resp.text}")
+                continue
 
-                try:
-                    body = resp.json()
-                except json.JSONDecodeError:
-                    logger.error(
-                        f"Failed to decode ChaosIQ's response {resp.text}",
-                        exc_info=True)
-                    continue
+            try:
+                body = resp.json()
+            except json.JSONDecodeError:
+                logger.error(
+                    f"Failed to decode ChaosIQ's response {resp.text}",
+                    exc_info=True)
+                continue
 
-                try:
-                    job = Job.parse_obj(body)
-                except ValidationError as x:
-                    logger.error(f"Failed to parse job: {str(x)}")
-                    continue
+            try:
+                job = Job.parse_obj(body)
+            except ValidationError as x:
+                logger.error(f"Failed to parse job: {str(x)}")
+                continue
 
+            try:
                 await self.handle_job(job)
+            finally:
                 await self.ack_job(job)
 
             # wait between jobs to allow other functions to execute (needed ??)
@@ -99,11 +101,36 @@ class Jobs:
         self._running = False
 
     async def handle_job(self, job: Job) -> None:
-        await self.sched.spawn(self.backend.process_job(job=job))
+        # await self.sched.spawn(self.backend.process_job(job=job))
+        await self.sched.spawn(self.__handle_job(job=job))
+
+    async def __handle_job(self, job: Job) -> None:
+        try:
+            await self.backend.process_job(job=job)
+            await self.update_job_status(job, status="processed")
+        except Exception as exc:  # noqa: 0703
+            await self.update_job_status(
+                job, status="failed", info={"exception": str(exc)})
 
     async def ack_job(self, job: Job) -> None:
         """
         This ACK is to remove the processed job from the job queue
         """
-        async with self.client as client:
+        async with ChaosIQClient(self.config) as client:
             await client.delete(f"/agent/jobs/queue/{job.id}")
+
+    async def update_job_status(
+            self, job: Job, status: str, info: Dict[str, Any] = None) -> None:
+        """
+        Reports the status of the current job to ChaosIQ
+        """
+        async with ChaosIQClient(self.config) as client:
+            await client.put(
+                f"/agent/jobs/{job.id}/status",
+                json={"status": status, "info": info},
+            )
+
+    @staticmethod
+    def aiojobs_exception(
+            scheduler: Scheduler, context: Dict[str, Any]) -> None:
+        logger.error(context)
