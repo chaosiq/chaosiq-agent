@@ -1,0 +1,18 @@
+---
+apiVersion: chaostoolkit.org/v1
+kind: ChaosToolkitExperiment
+metadata:
+  name: {name}
+  namespace: chaostoolkit-crd
+spec:
+  namespace: chaostoolkit-run
+  pod:
+    image: chaosiq/chaostoolkit
+    chaosArgs:
+    - {chaos_cmd}
+    - {asset_url}
+    settings:
+      enabled: true
+      secretName: chaostoolkit-settings
+    experiment:
+      asFile: false

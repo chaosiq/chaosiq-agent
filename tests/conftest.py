@@ -7,7 +7,7 @@ import pytest
 
 from chaosiqagent.backend.base import BaseBackend
 from chaosiqagent.settings import load_settings
-from chaosiqagent.types import Config
+from chaosiqagent.types import Config, Job
 
 cur_dir = os.path.abspath(os.path.dirname(__file__))
 fixtures_dir = os.path.join(cur_dir, "fixtures")
@@ -34,4 +34,20 @@ def backend(config: Config) -> BaseBackend:
 def http_test_client() -> httpx.AsyncClient:
     from fixtures.httpx_client import TestClient
     return TestClient()
- 
+
+
+@pytest.fixture
+def experiment() -> Job:
+    from fixtures.job import create_job
+    return create_job()
+
+
+@pytest.fixture
+def job(experiment) -> Job:
+    # shortcut
+    return experiment
+
+@pytest.fixture
+def verification() -> Job:
+    from fixtures.job import create_job
+    return create_job(target_type="verification")
