@@ -1,4 +1,5 @@
-from typing import Literal
+from datetime import datetime
+from typing import Literal, Optional, Dict, Any
 
 from pydantic import BaseModel, BaseSettings, Field, UUID4, AnyUrl
 
@@ -20,3 +21,12 @@ class Config(BaseSettings):
 
 class Job(BaseModel):
     id: UUID4
+    agent_id: UUID4
+
+    target_id: UUID4
+    target_type: Literal["experiment", "verification"]
+    target_url: AnyUrl
+    access_token: Optional[bytes]
+
+    payload: Optional[Dict[str, Any]]
+    run_at: Optional[datetime]
