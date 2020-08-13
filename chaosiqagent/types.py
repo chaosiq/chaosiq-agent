@@ -6,7 +6,7 @@ from pydantic import BaseModel, BaseSettings, Field, UUID4, AnyUrl
 __all__ = ["Config", "Job", "Backend"]
 
 
-Backend = Literal["null", "kubernetes"]
+Backend = Literal["null", "kubernetes", "shell"]
 
 
 class Config(BaseSettings):

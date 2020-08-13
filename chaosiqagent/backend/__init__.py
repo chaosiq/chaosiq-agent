@@ -14,5 +14,8 @@ def get_backend(config: Config) -> BaseBackend:
     if backend_name == "kubernetes":
         from .k8s import K8SBackend
         return K8SBackend(config)
+    elif backend_name == "shell":
+        from .shell import ShellBackend
+        return ShellBackend(config)
     elif backend_name == "null":
         return NullBackend(config)
