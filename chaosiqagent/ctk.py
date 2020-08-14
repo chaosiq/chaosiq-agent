@@ -36,6 +36,6 @@ def get_chaostoolkit_settings(
             team_id=team_id,
             console_hostname=console_hostname,
             console_url=console_url,
-            verify_tls=config.verify_tls
+            verify_tls=str(config.verify_tls).lower()
         )
         return settings
