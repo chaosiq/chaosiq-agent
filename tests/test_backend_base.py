@@ -22,7 +22,7 @@ async def test_null_backend_does_nothing_but_logging_jobs(capsys,
 
     captured = capsys.readouterr()
     assert captured.out == ""
-    assert f"NullBackend got job: {j}" in captured.err
+    assert f"Backend 'null' got job: {j}" in captured.err
 
 
 @pytest.mark.asyncio
@@ -31,11 +31,9 @@ async def test_cannot_implement_base_backend():
 
     with pytest.raises(NotImplementedError):
         await b.setup()
-    
 
     with pytest.raises(NotImplementedError):
         await b.cleanup()
-    
 
     with pytest.raises(NotImplementedError):
         await b.process_job({})
