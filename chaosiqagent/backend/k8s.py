@@ -1,11 +1,15 @@
 import os
 # import yaml
+import shlex
+import subprocess
+import tempfile
 
 from kubernetes_asyncio import config
-from kubernetes_asyncio.client.api_client import ApiClient
+# from kubernetes_asyncio.client.api_client import ApiClient
 from kubernetes_asyncio.config.kube_config import Configuration
 # from kubernetes_asyncio.utils import create_from_yaml
 
+from ..ctk import get_chaostoolkit_settings
 from ..types import Config, Job
 from .base import BaseBackend
 
@@ -37,22 +41,52 @@ class K8SBackend(BaseBackend):
         Create the custom resource object that the Chaos Toolkit operator
         can consume.
         """
-        async with ApiClient(configuration=self.k8s_config):  # as api
-            # await api.create_from_yaml()
-            pass
+        settings = get_chaostoolkit_settings(
+            self.config, job.access_token,
+            org_id=job.org_id, team_id=job.team_id)
+
+        secret = render_secret_manifest(settings)
+        experiment = render_experiment_manifest(
+            job, verify_tls=self.config.verify_tls)
+
+        # first draft - we apply using Kubectl on command line
+        for manifest in [secret, experiment]:
+            with tempfile.NamedTemporaryFile(mode="w") as f:
+                f.write(manifest)
+                f.seek(0)
+
+                cmd = f"kubectl apply -f {f.name}"
+                p = subprocess.run(shlex.split(cmd))
+                p.check_returncode()
+
+        # with ApiClient(configuration=self.k8s_config) as api:
+        #     v1 = client.CoreV1Api(api)
+        #     print("Listing pods with their IPs:")
+        #     ret = await v1.list_pod_for_all_namespaces()
+        #     for i in ret.items:
+        #         print(i.status.pod_ip, i.metadata.namespace, i.metadata.name)
+
+        # with ApiClient(configuration=self.k8s_config) as k8s_client:
+        #     for manifest in [secret, experiment]:
+        #         with tempfile.NamedTemporaryFile(mode="w") as f:
+        #             f.write(manifest)
+        #             f.seek(0)
+        #             await create_from_yaml(k8s_client, f.name,
+        #                                    verbose=True, async_req=True)
 
 
 ###############################################################################
 # Internals
 ###############################################################################
 
-def render_experiment_manifest(job: Job) -> str:
+def render_experiment_manifest(job: Job, verify_tls: bool = True) -> str:
     with open(os.path.join(K8S_TEMPLATES, "experiment.yaml")) as f:
         template = f.read()
         experiment = template.format(
             name=job.id,  # we use the Job ID as the experiment name !
             chaos_cmd="verify" if job.target_type == "verification" else "run",
             asset_url=job.target_url,
+            no_verify_tls='--no-verif-tls' if not verify_tls else '',
         )
         return experiment
 
@@ -80,10 +114,6 @@ def render_secret_manifest(settings: str) -> str:
         secret = template.format(settings=_indent_settings(settings))
         return secret
 
-
-###############################################################################
-# Internals
-###############################################################################
 
 def _indent_settings(settings: str, indent: int = 4) -> str:
     spaces = ' ' * indent

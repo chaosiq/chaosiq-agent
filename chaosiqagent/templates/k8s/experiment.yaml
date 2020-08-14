@@ -11,6 +11,7 @@ spec:
     chaosArgs:
     - {chaos_cmd}
     - {asset_url}
+    - {no_verify_tls}
     settings:
       enabled: true
       secretName: chaostoolkit-settings
