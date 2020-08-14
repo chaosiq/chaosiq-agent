@@ -11,6 +11,8 @@ def create_job(target_type: Literal["experiment", "verification"] = None):
     return Job(
         id=uuid.uuid4(),
         agent_id=uuid.uuid4(),
+        org_id=uuid.uuid4(),
+        team_id=uuid.uuid4(),
         target_id=target_id,
         target_type=target_type,
         target_url=f"https://console.example.com/assets/{target_type}s/{target_id}",

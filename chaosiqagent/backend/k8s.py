@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 
 from kubernetes_asyncio import config
-# from kubernetes_asyncio.client.api_client import ApiClient
+from kubernetes_asyncio.client.api_client import ApiClient  # noqa: 0611 required by unit tests mock
 from kubernetes_asyncio.config.kube_config import Configuration
 # from kubernetes_asyncio.utils import create_from_yaml
 
