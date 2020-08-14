@@ -1,5 +1,5 @@
 import os
-import yaml
+# import yaml
 
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client.api_client import ApiClient
@@ -69,6 +69,7 @@ def render_experiment_manifest(job: Job) -> str:
 #         secret = yaml.safe_dump(secret)
 #         return secret
 
+
 def render_secret_manifest(settings: str) -> str:
     """
     We need to keep the settings as a multi-line string content
@@ -76,5 +77,16 @@ def render_secret_manifest(settings: str) -> str:
     """
     with open(os.path.join(K8S_TEMPLATES, "secret.yaml")) as f:
         template = f.read()
-        secret = template.format(settings=settings)
+        secret = template.format(settings=_indent_settings(settings))
         return secret
+
+
+###############################################################################
+# Internals
+###############################################################################
+
+def _indent_settings(settings: str, indent: int = 4) -> str:
+    spaces = ' ' * indent
+    lines = settings.split(os.linesep)
+    lines = [f"{spaces}{line}" for line in lines]
+    return str(os.linesep.join(lines))

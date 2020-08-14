@@ -97,7 +97,6 @@ async def test_load_kube_config_process_job(api_client, config_path: str):
 
 def test_render_experiment_manifest(job):
     manifest = render_experiment_manifest(job=job)
-    print(manifest)
     assert manifest not in [None, '']
 
     # ensure yaml is valid
@@ -123,7 +122,6 @@ controls:
 
 def test_render_secret_manifest():
     manifest = render_secret_manifest(settings=DUMMY_SETTINGS)
-    print(manifest)
     assert manifest not in [None, '']
 
     # ensure yaml is valid
