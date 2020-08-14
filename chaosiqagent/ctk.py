@@ -23,9 +23,9 @@ def get_chaostoolkit_settings(
         # generates random UUIDs for org & team IDs
         # The experiment/verification once downloaded will contain those IDs
         if not org_id:
-            org_id = uuid.uuid4()
+            org_id = str(uuid.uuid4())
         if not team_id:
-            team_id = uuid.uuid4()
+            team_id = str(uuid.uuid4())
 
         parsed = urlparse(config.agent_url)
         console_url = f"{parsed.scheme}://{parsed.netloc}"
