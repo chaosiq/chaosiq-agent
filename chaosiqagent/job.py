@@ -137,5 +137,6 @@ class Jobs:
 
     @staticmethod
     def aiojobs_exception(
-            scheduler: Scheduler, context: Dict[str, Any]) -> None:
+            scheduler: Scheduler,
+            context: Dict[str, Any]) -> None:  # pragma: no cover
         logger.error(context)
