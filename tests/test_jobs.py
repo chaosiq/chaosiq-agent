@@ -11,12 +11,14 @@ import respx
 
 from chaosiqagent.backend.base import BaseBackend
 from chaosiqagent.job import Jobs
+from chaosiqagent.json import JSONEncoder
 from chaosiqagent.log import configure_logging
 from chaosiqagent.settings import load_settings
+from chaosiqagent.types import Job
 
 
 @pytest.mark.asyncio
-async def test_consume_jobs(config_path: str, backend: BaseBackend):
+async def test_consume_jobs(config_path: str, backend: BaseBackend, job: Job):
     c = load_settings(config_path)
     configure_logging(c)
     async with Jobs(c, backend) as j:
@@ -30,9 +32,19 @@ async def test_consume_jobs(config_path: str, backend: BaseBackend):
         async with respx.mock:
             respx.get(
                 "https://console.example.com/agent/jobs/queue/next",
-                content=json.dumps({"id": str(uuid.uuid4())})
+                content=json.dumps(job, cls=JSONEncoder)
+            )
+            req_ack = respx.delete(
+                f"https://console.example.com/agent/jobs/queue/{job.id}",
+                status_code=204
+            )
+            req_status = respx.put(
+                f"https://console.example.com/agent/jobs/{job.id}/status",
+                status_code=200
             )
             await j.consume()
+            assert req_ack.called
+            assert req_status.called
 
 
 @pytest.mark.asyncio

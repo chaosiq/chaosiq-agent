@@ -12,6 +12,7 @@ from chaosiqagent.agent import Agent
 from chaosiqagent.settings import load_settings
 from chaosiqagent.backend.k8s import render_experiment_manifest, \
     render_secret_manifest
+from chaosiqagent.types import Job
 
 
 
@@ -69,8 +70,12 @@ async def test_load_kube_config_at_default_location(config_path: str):
 
 
 @pytest.mark.asyncio
+@patch("subprocess.run", autospec=True)
 @patch("chaosiqagent.backend.k8s.ApiClient", autospec=True)
-async def test_load_kube_config_process_job(api_client, config_path: str):
+async def test_load_kube_config_process_job(
+        api_client, subprocess_run,
+    #mock_register, mock_connect,
+        config_path: str, job: Job):
     with NamedTemporaryFile() as f:
         f.write(BASIC_CONFIG)
         f.seek(0)
@@ -87,8 +92,8 @@ async def test_load_kube_config_process_job(api_client, config_path: str):
         agent = Agent(c)
         await agent.setup()
 
-        job = {"id": str(uuid.uuid4())}
         await agent.backend.process_job(job)
+        subprocess_run.assert_called()
 
         await agent.cleanup()
         assert agent.backend.k8s_config is None

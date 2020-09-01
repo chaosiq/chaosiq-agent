@@ -1,4 +1,5 @@
 import pytest
+from tempfile import NamedTemporaryFile
 
 from chaosiqagent.backend import get_backend
 from chaosiqagent.backend.base import BaseBackend, NullBackend
@@ -37,3 +38,17 @@ async def test_cannot_implement_base_backend():
 
     with pytest.raises(NotImplementedError):
         await b.process_job({})
+
+
+@pytest.mark.parametrize("name", ["null", "kubernetes", "shell"])
+def test_get_backend(config_path: str, name):
+    with open(config_path, 'r') as p:
+        with NamedTemporaryFile('w') as f:
+            f.write(p.read())
+            f.write(f"AGENT_BACKEND=\"{name}\"")
+            f.seek(0)
+
+            config = load_settings(f.name)
+            backend = get_backend(config)
+            assert backend is not None
+            assert isinstance(backend, BaseBackend)
