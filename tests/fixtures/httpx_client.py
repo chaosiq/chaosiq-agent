@@ -6,3 +6,8 @@ class TestClient(httpx.AsyncClient):
         return httpx.Response(
             status_code=200, request=httpx.Request("GET", args[0]),
             content=b'{"msg": "hello"}')
+
+    async def post(self, *args, **kwargs) -> httpx.Response:
+        return httpx.Response(
+            status_code=200, request=httpx.Request("POST", args[0]),
+        )

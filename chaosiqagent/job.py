@@ -62,14 +62,22 @@ class Jobs:
         logger.info("Consuming jobs...")
 
         self._running = True
+        wait = default = 0.3
         while self.running and not self.sched.closed:
+            # wait between jobs to allow other functions to execute
+            # NB: needs to be at top of while loop, due to multiple 'continue'
+            await asyncio.sleep(wait)
 
             async with ChaosIQClient(self.config) as client:
                 resp = await client.get("/agent/jobs/queue/next")
                 if resp.status_code == 204:
-                    # wait when queue is empty
-                    await asyncio.sleep(5)
+                    # increase wait when queue is empty (max 5sec.)
+                    wait = wait * 2
+                    wait = wait if wait < 5 else 5
                     continue
+                else:
+                    # reset initial wait before jobs
+                    wait = default
 
             if resp.status_code >= 400:
                 logger.info(
@@ -94,9 +102,6 @@ class Jobs:
                 await self.handle_job(job)
             finally:
                 await self.ack_job(job)
-
-            # wait between jobs to allow other functions to execute (needed ??)
-            await asyncio.sleep(0.3)
 
         self._running = False
 

@@ -1,76 +1,52 @@
 # type: ignore
 import asyncio
 from asyncio import AbstractEventLoop
+import json
 import os
 import signal
 import threading
 import time
-from unittest.mock import AsyncMock, patch
 
 import httpx
 import pytest
+import respx
 
 from chaosiqagent.agent import Agent
 from chaosiqagent.log import configure_logging
 from chaosiqagent.settings import load_settings
 
 
-@patch("chaosiqagent.job.AsyncClient", autospec=True)
-def test_agent_gracefully_terminates_on_SIGINT(httpx: httpx.AsyncClient,
-                                               http_test_client: httpx.AsyncClient,
-                                               config_path: str):
+@respx.mock
+@pytest.mark.parametrize('sig', [signal.SIGTERM, signal.SIGINT, signal.SIGHUP])
+def test_agent_gracefully_terminates_on_signal(
+        config_path: str, sig):
+
     def _send_signal():
         time.sleep(0.5)
-        os.kill(os.getpid(), signal.SIGINT)
+        os.kill(os.getpid(), sig)
 
     thread = threading.Thread(target=_send_signal, daemon=True)
     thread.start()
 
-    httpx.return_value = http_test_client
     c = load_settings(config_path)
+
+    req_actions = respx.post(
+        "https://console.example.com/agent/actions",
+        status_code=200
+    )
+    req_jobs = respx.get(
+        "https://console.example.com/agent/jobs/queue/next",
+        status_code=204
+    )
 
     agent = Agent(c)
     asyncio.run(agent.run(), debug=True)
-    assert agent.running == False
-    httpx.assert_called()
+    assert agent.running is False
+    assert req_jobs.called is True
 
-
-
-@patch("chaosiqagent.job.AsyncClient", autospec=True)
-def test_agent_gracefully_terminates_on_SIGTERM(httpx: httpx.AsyncClient,
-                                                http_test_client: httpx.AsyncClient,
-                                                config_path: str):
-    def _send_signal():
-        time.sleep(0.5)
-        os.kill(os.getpid(), signal.SIGTERM)
-
-    thread = threading.Thread(target=_send_signal, daemon=True)
-    thread.start()
-
-    httpx.return_value = http_test_client
-    c = load_settings(config_path)
-
-    agent = Agent(c)
-    asyncio.run(agent.run(), debug=True)
-    assert agent.running == False
-    httpx.assert_called()
-
-
-@patch("chaosiqagent.job.AsyncClient", autospec=True)
-def test_agent_gracefully_terminates_on_SIGHUP(httpx: httpx.AsyncClient,
-                                               http_test_client: httpx.AsyncClient,
-                                               config_path: str):
-    def _send_signal():
-        time.sleep(0.5)
-        os.kill(os.getpid(), signal.SIGHUP)
-
-    thread = threading.Thread(target=_send_signal, daemon=True)
-    thread.start()
-
-    httpx.return_value = http_test_client
-    c = load_settings(config_path)
-
-    agent = Agent(c)
-    asyncio.run(agent.run(), debug=True)
-    assert agent.running == False
-    httpx.assert_called()
+    assert req_actions.called is True
+    actions = []
+    for request, response in req_actions.calls:
+        req_body = json.loads(request.read())
+        actions.append(req_body["action"])
+    assert set(actions) == set(["register", "connect", "disconnect"])
