@@ -20,9 +20,13 @@ class ShellBackend(BaseBackend):
         # ensure the `chaos` binary path is defined & exists
         if not self.bin:
             logger.critical("'chaos' binary path must be set in config!")
+            return
+
         if not os.path.exists(self.bin):
             logger.critical("'chaos' binary path cannot be found, "
                             "please check your config!")
+            return
+
         logger.info(f"Backend '{self.name}' configured with "
                     f"Chaos Toolkit binary: {self.bin}")
 

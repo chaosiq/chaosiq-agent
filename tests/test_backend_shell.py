@@ -4,13 +4,66 @@ from unittest.mock import patch
 import pytest
 
 from chaosiqagent.agent import Agent
+from chaosiqagent.log import configure_logging
 from chaosiqagent.settings import load_settings
 from chaosiqagent.types import Job
 
 
 @pytest.mark.asyncio
-async def test_load_chaos_binary(config_path: str):
+async def test_load_chaos_binary(capsys, config_path: str):
+    with NamedTemporaryFile() as bin:
 
+        with open(config_path) as o:
+            with NamedTemporaryFile() as p:
+                r = o.read()
+                r = r.replace('AGENT_BACKEND="null"', 'AGENT_BACKEND="shell"')
+                r = r.replace('CHAOS_BINARY=', f"CHAOS_BINARY={bin.name}")
+                p.write(r.encode('utf-8'))
+                p.seek(0)
+                c = load_settings(p.name)
+                configure_logging(c)
+
+        agent = Agent(c)
+        assert agent.backend.__class__.__name__ == "ShellBackend"
+
+        await agent.setup()
+        assert agent.backend.bin == bin.name
+
+        captured = capsys.readouterr()
+        assert \
+            "Backend 'shell' configured with " \
+            f"Chaos Toolkit binary: {bin.name}" in captured.err
+
+        await agent.cleanup()
+        assert agent.backend.bin is None
+
+
+@pytest.mark.asyncio
+async def test_setup_missing_chaos_binary(capsys, config_path: str):
+    with open(config_path) as o:
+        with NamedTemporaryFile() as p:
+            r = o.read()
+            r = r.replace('AGENT_BACKEND="null"', 'AGENT_BACKEND="shell"')
+            p.write(r.encode('utf-8'))
+            p.seek(0)
+            c = load_settings(p.name)
+            configure_logging(c)
+
+        agent = Agent(c)
+        assert agent.backend.__class__.__name__ == "ShellBackend"
+
+        await agent.setup()
+        assert agent.backend.bin in [None, ""]
+
+        captured = capsys.readouterr()
+        assert "'chaos' binary path must be set in config" in captured.err
+        assert "Backend 'shell' configured with " not in captured.err
+
+        await agent.cleanup()
+
+
+@pytest.mark.asyncio
+async def test_setup_chaos_binary_cannot_be_found(capsys, config_path: str):
     with open(config_path) as o:
         with NamedTemporaryFile() as p:
             r = o.read()
@@ -19,15 +72,20 @@ async def test_load_chaos_binary(config_path: str):
             p.write(r.encode('utf-8'))
             p.seek(0)
             c = load_settings(p.name)
+            configure_logging(c)
 
         agent = Agent(c)
         assert agent.backend.__class__.__name__ == "ShellBackend"
 
         await agent.setup()
-        assert agent.backend.bin == "/usr/bin/chaos"
+        assert agent.backend.bin == '/usr/bin/chaos'
+
+        captured = capsys.readouterr()
+        assert "'chaos' binary path must be set in config" not in captured.err
+        assert "'chaos' binary path cannot be found" in captured.err
+        assert "Backend 'shell' configured with " not in captured.err
 
         await agent.cleanup()
-        assert agent.backend.bin is None
 
 
 @pytest.mark.asyncio
@@ -131,4 +189,3 @@ async def test_process_job_without_tls(
     assert "--no-verify-tls" in cmd
 
     await agent.cleanup()
-
