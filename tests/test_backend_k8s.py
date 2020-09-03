@@ -1,9 +1,6 @@
 import os
 from tempfile import NamedTemporaryFile
-import tempfile
-from unittest.mock import patch
-import uuid
-import uuid
+from unittest.mock import patch, AsyncMock
 import yaml
 
 import pytest
@@ -13,6 +10,7 @@ from chaosiqagent.settings import load_settings
 from chaosiqagent.backend.k8s import render_experiment_manifest, \
     render_secret_manifest
 from chaosiqagent.types import Job
+from chaosiqagent.backend.k8s import core_v1_api, custom_objects_api
 
 
 
@@ -69,13 +67,15 @@ async def test_load_kube_config_at_default_location(config_path: str):
         del os.environ["KUBECONFIG"]
 
 
-@pytest.mark.asyncio
-@patch("subprocess.run", autospec=True)
+
+@patch.object(custom_objects_api.CustomObjectsApi, "create_namespaced_custom_object", new_callable=AsyncMock)
+@patch.object(core_v1_api.CoreV1Api, "create_namespaced_secret", new_callable=AsyncMock)
 @patch("chaosiqagent.backend.k8s.ApiClient", autospec=True)
+@pytest.mark.asyncio
 async def test_load_kube_config_process_job(
-        api_client, subprocess_run,
-    #mock_register, mock_connect,
+        k8s_client, create_secret, create_custom_object,
         config_path: str, job: Job):
+
     with NamedTemporaryFile() as f:
         f.write(BASIC_CONFIG)
         f.seek(0)
@@ -93,7 +93,11 @@ async def test_load_kube_config_process_job(
         await agent.setup()
 
         await agent.backend.process_job(job)
-        subprocess_run.assert_called()
+        k8s_client.assert_called()
+        create_secret.assert_awaited()
+        assert create_secret.call_count == 1
+        create_custom_object.assert_awaited()
+        assert create_custom_object.call_count == 1
 
         await agent.cleanup()
         assert agent.backend.k8s_config is None

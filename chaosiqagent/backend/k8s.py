@@ -1,22 +1,23 @@
 import os
-# import yaml
-import shlex
-import subprocess
-import tempfile
+import yaml
 
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client.api_client import ApiClient  # noqa: 0611 required by unit tests mock
+from kubernetes_asyncio.client.api import core_v1_api, custom_objects_api
+from kubernetes_asyncio.client.api.custom_objects_api import CustomObjectsApi
+
 from kubernetes_asyncio.config.kube_config import Configuration
-# from kubernetes_asyncio.utils import create_from_yaml
 
 from ..ctk import get_chaostoolkit_settings
 from ..types import Config, Job
 from .base import BaseBackend
+from ..log import logger
 
 __all__ = ["K8SBackend"]
 
 
 K8S_TEMPLATES = os.path.join(os.path.dirname(__file__), "../templates/k8s")
+SETTINGS_NAME = "chaostoolkit-settings"
 
 
 class K8SBackend(BaseBackend):
@@ -32,9 +33,26 @@ class K8SBackend(BaseBackend):
             config_file=os.environ.get('KUBECONFIG', '~/.kube/config'),
             client_configuration=self.k8s_config,
             persist_config=False)
+        # await self.create_default_namespaces()
 
     async def cleanup(self) -> None:
         self.k8s_config = None
+
+    # async def create_default_namespaces(self) -> None:
+    #     """
+    #     Ensure the required namespaces are created, or do it as a fallback
+    #     These namespaces shall be created upon the K8s CRD installation
+    #     """
+    #     k8s_client = ApiClient(configuration=self.k8s_config)
+    #     v1 = core_v1_api.CoreV1Api(k8s_client)
+    #
+    #     ret = await v1.list_namespace()
+    #     namespaces = [ns.metadata.name for ns in ret.items]
+    #     for ns in ["chaostoolkit-crd", "chaostoolkit-run"]:
+    #         if ns not in namespaces:
+    #             namespace = render_namespace_manifest(ns)
+    #             await v1.create_namespace(yaml.safe_load(namespace))
+    #             logger.info(f"Kubernetes namespace '{ns}' created")
 
     async def process_job(self, job: Job) -> None:
         """
@@ -44,42 +62,49 @@ class K8SBackend(BaseBackend):
         settings = get_chaostoolkit_settings(
             self.config, job.access_token,
             org_id=job.org_id, team_id=job.team_id)
+        settings_name = f"settings-{job.id}"
 
-        secret = render_secret_manifest(settings)
+        secret = render_secret_manifest(settings, settings_name=settings_name)
         experiment = render_experiment_manifest(
-            job, verify_tls=self.config.verify_tls)
+            job, verify_tls=self.config.verify_tls, settings_name=settings_name)
 
-        # first draft - we apply using Kubectl on command line
-        for manifest in [secret, experiment]:
-            with tempfile.NamedTemporaryFile(mode="w") as f:
-                f.write(manifest)
-                f.seek(0)
+        k8s_client = ApiClient(configuration=self.k8s_config)
 
-                cmd = f"kubectl apply -f {f.name}"
-                p = subprocess.run(shlex.split(cmd))
-                p.check_returncode()
+        # create the secret containing the CTK settings
+        try:
+            api = core_v1_api.CoreV1Api(k8s_client)
+            secret = await api.create_namespaced_secret(
+                namespace="chaostoolkit-run", body=yaml.safe_load(secret))
+            assert secret is not None
+        except Exception:  # pragma: no cover
+            logger.exception("Cannot create the secret on K8s")
+            raise
 
-        # with ApiClient(configuration=self.k8s_config) as api:
-        #     v1 = client.CoreV1Api(api)
-        #     print("Listing pods with their IPs:")
-        #     ret = await v1.list_pod_for_all_namespaces()
-        #     for i in ret.items:
-        #         print(i.status.pod_ip, i.metadata.namespace, i.metadata.name)
-
-        # with ApiClient(configuration=self.k8s_config) as k8s_client:
-        #     for manifest in [secret, experiment]:
-        #         with tempfile.NamedTemporaryFile(mode="w") as f:
-        #             f.write(manifest)
-        #             f.seek(0)
-        #             await create_from_yaml(k8s_client, f.name,
-        #                                    verbose=True, async_req=True)
+        # create the experiment custom resource
+        try:
+            api = custom_objects_api.CustomObjectsApi(k8s_client)
+            co = await api.create_namespaced_custom_object(
+                # group, version, namespace, plural, body
+                "chaostoolkit.org",
+                "v1",
+                "chaostoolkit-crd",
+                "chaosexperiments",
+                yaml.safe_load(experiment),
+            )
+            assert co is not None
+        except Exception:  # pragma: no cover
+            logger.exception("Cannot create the experiment on K8s")
+            raise
 
 
 ###############################################################################
 # Internals
 ###############################################################################
 
-def render_experiment_manifest(job: Job, verify_tls: bool = True) -> str:
+def render_experiment_manifest(
+        job: Job, verify_tls: bool = True,
+        settings_name: str = SETTINGS_NAME,
+        ) -> str:
     with open(os.path.join(K8S_TEMPLATES, "experiment.yaml")) as f:
         template = f.read()
         experiment = template.format(
@@ -87,6 +112,7 @@ def render_experiment_manifest(job: Job, verify_tls: bool = True) -> str:
             chaos_cmd="verify" if job.target_type == "verification" else "run",
             asset_url=job.target_url,
             no_verify_tls='--no-verif-tls' if not verify_tls else '',
+            settings_name=settings_name,
         )
         return experiment
 
@@ -104,14 +130,18 @@ def render_experiment_manifest(job: Job, verify_tls: bool = True) -> str:
 #         return secret
 
 
-def render_secret_manifest(settings: str) -> str:
+def render_secret_manifest(
+        settings: str, settings_name: str = SETTINGS_NAME) -> str:
     """
     We need to keep the settings as a multi-line string content
     so that the K8s secret can base64 encode it on creation/update
     """
     with open(os.path.join(K8S_TEMPLATES, "secret.yaml")) as f:
         template = f.read()
-        secret = template.format(settings=_indent_settings(settings))
+        secret = template.format(
+            settings=_indent_settings(settings),
+            settings_name=settings_name,
+        )
         return secret
 
 
@@ -120,3 +150,10 @@ def _indent_settings(settings: str, indent: int = 4) -> str:
     lines = settings.split(os.linesep)
     lines = [f"{spaces}{line}" for line in lines]
     return str(os.linesep.join(lines))
+
+
+# def render_namespace_manifest(name: str) -> str:
+#     with open(os.path.join(K8S_TEMPLATES, "namespace.yaml")) as f:
+#         template = f.read()
+#         namespace = template.format(name=name)
+#         return namespace

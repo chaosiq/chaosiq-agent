@@ -14,6 +14,6 @@ spec:
     - {no_verify_tls}
     settings:
       enabled: true
-      secretName: chaostoolkit-settings
+      secretName: {settings_name}
     experiment:
       asFile: false
