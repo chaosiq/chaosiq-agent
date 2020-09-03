@@ -1,5 +1,6 @@
 import os
 import yaml
+from typing import Optional, Type, Dict, Any
 
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client.api_client import ApiClient  # noqa: 0611 required by unit tests mock
@@ -64,9 +65,12 @@ class K8SBackend(BaseBackend):
             org_id=job.org_id, team_id=job.team_id)
         settings_name = f"settings-{job.id}"
 
-        secret = render_secret_manifest(settings, settings_name=settings_name)
+        labels = get_k8s_labels_for_job(job)
+        secret = render_secret_manifest(
+            settings, settings_name=settings_name, labels=labels)
         experiment = render_experiment_manifest(
-            job, verify_tls=self.config.verify_tls, settings_name=settings_name)
+            job, verify_tls=self.config.verify_tls,
+            settings_name=settings_name)
 
         k8s_client = ApiClient(configuration=self.k8s_config)
 
@@ -107,12 +111,14 @@ def render_experiment_manifest(
         ) -> str:
     with open(os.path.join(K8S_TEMPLATES, "experiment.yaml")) as f:
         template = f.read()
+        labels = get_k8s_labels_for_job(job)
         experiment = template.format(
             name=job.id,  # we use the Job ID as the experiment name !
             chaos_cmd="verify" if job.target_type == "verification" else "run",
             asset_url=job.target_url,
             no_verify_tls='--no-verif-tls' if not verify_tls else '',
             settings_name=settings_name,
+            **labels,
         )
         return experiment
 
@@ -131,16 +137,22 @@ def render_experiment_manifest(
 
 
 def render_secret_manifest(
-        settings: str, settings_name: str = SETTINGS_NAME) -> str:
+        settings: str,
+        settings_name: str = SETTINGS_NAME,
+        labels: Dict[str, str] = None,
+        ) -> str:
     """
     We need to keep the settings as a multi-line string content
     so that the K8s secret can base64 encode it on creation/update
     """
     with open(os.path.join(K8S_TEMPLATES, "secret.yaml")) as f:
         template = f.read()
+        labels = labels or {}
         secret = template.format(
             settings=_indent_settings(settings),
             settings_name=settings_name,
+            job_id=labels.get("id", ""),
+            job_type=labels.get("type", "")
         )
         return secret
 
@@ -157,3 +169,14 @@ def _indent_settings(settings: str, indent: int = 4) -> str:
 #         template = f.read()
 #         namespace = template.format(name=name)
 #         return namespace
+
+
+def get_k8s_labels_for_job(job: Job) -> Dict[str, str]:
+    """
+    Returns the dict containing the labels
+    to insert into the metadata for Kubernetes objects
+    """
+    return {
+        "job_id": job.id,
+        "job_type": job.target_type,
+    }

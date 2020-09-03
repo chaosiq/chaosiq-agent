@@ -4,6 +4,9 @@ kind: ChaosToolkitExperiment
 metadata:
   name: {name}
   namespace: chaostoolkit-crd
+  labels:
+    job: {job_id}
+    type: {job_type}
 spec:
   namespace: chaostoolkit-run
   pod:
