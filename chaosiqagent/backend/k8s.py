@@ -151,8 +151,8 @@ def render_secret_manifest(
         secret = template.format(
             settings=_indent_settings(settings),
             settings_name=settings_name,
-            job_id=labels.get("id", ""),
-            job_type=labels.get("type", "")
+            job_id=labels.get("job_id", ""),
+            job_type=labels.get("job_type", "")
         )
         return secret
 
