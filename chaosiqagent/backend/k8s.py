@@ -116,7 +116,7 @@ def render_experiment_manifest(
             name=job.id,  # we use the Job ID as the experiment name !
             chaos_cmd="verify" if job.target_type == "verification" else "run",
             asset_url=job.target_url,
-            no_verify_tls='--no-verif-tls' if not verify_tls else '',
+            no_verify_tls='--no-verify-tls' if not verify_tls else '',
             settings_name=settings_name,
             **labels,
         )
