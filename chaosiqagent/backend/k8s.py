@@ -1,11 +1,10 @@
 import os
 import yaml
-from typing import Optional, Type, Dict, Any
+from typing import Dict
 
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client.api_client import ApiClient  # noqa: 0611 required by unit tests mock
 from kubernetes_asyncio.client.api import core_v1_api, custom_objects_api
-from kubernetes_asyncio.client.api.custom_objects_api import CustomObjectsApi
 
 from kubernetes_asyncio.config.kube_config import Configuration
 
