@@ -1,0 +1,42 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaosiq-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaosiq-agent
+  template:
+    metadata:
+      labels:
+        app: chaosiq-agent
+    spec:
+      serviceAccountName: chaosiq-agent
+      containers:
+      - name: agent
+        image: chaosiq/agent:latest
+        imagePullPolicy: Always
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: agent-env
+          mountPath: /etc/chaosiq/agent
+          readOnly: true
+      volumes:
+      - name: agent-env
+        secret:
+          secretName: chaosiq-agent-env
+      - name: pod-info
+        downwardAPI:
+          items:
+            - path: "labels"
+              fieldRef:
+                fieldPath: metadata.labels
+

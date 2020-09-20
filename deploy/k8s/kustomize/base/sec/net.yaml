@@ -1,0 +1,50 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: deny-all
+  namespace: chaosiq-agent
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-chaostoolkit-to-cluster-dns
+  namespace: chaosiq-agent
+spec:
+  policyTypes:
+  - Egress
+  podSelector:
+    matchLabels:
+      app: chaosiq-agent
+  egress:
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - port: 53
+      protocol: UDP
+    - port: 53
+      protocol: TCP
+---
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: allow-chaostoolkit-to-secured-external
+  namespace: chaosiq-agent
+spec:
+  policyTypes:
+  - Egress
+  podSelector:
+    matchLabels:
+      app: chaosiq-agent
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports:
+      - port: 443
+        protocol: TCP
