@@ -21,3 +21,6 @@ dist/
 .pytest_cache/
 *.xml
 cloudbuild.yaml
+deploy/
+config/.env.local
+.editorconfig
