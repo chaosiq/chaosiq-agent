@@ -3,6 +3,8 @@ import yaml
 from typing import Dict
 
 from kubernetes_asyncio import config
+from kubernetes_asyncio.config.incluster_config import load_incluster_config, \
+    SERVICE_TOKEN_FILENAME
 from kubernetes_asyncio.client.api_client import ApiClient  # noqa: 0611 required by unit tests mock
 from kubernetes_asyncio.client.api import core_v1_api, custom_objects_api
 
@@ -29,17 +31,22 @@ class K8SBackend(BaseBackend):
         self.k8s_config = Configuration()
 
     async def setup(self) -> None:
-        kubecfg = os.path.expanduser(
-            os.environ.get('KUBECONFIG', '~/.kube/config'))
-        if not os.path.isfile(kubecfg):
-            raise RuntimeError(
-                f"Cannot locate a valid kubeconfig at: {kubecfg}")
+        if os.path.isfile(SERVICE_TOKEN_FILENAME):  # pragma: no cover
+            logger.info("Running from a Kubernetes pod")
+            self.k8s_config = load_incluster_config()
+            logger.info("Kubernetes config loaded successfully from pod")
+        else:
+            kubecfg = os.path.expanduser(
+                os.environ.get('KUBECONFIG', '~/.kube/config'))
+            if not os.path.isfile(kubecfg):
+                raise RuntimeError(
+                    f"Cannot locate a valid kubeconfig at: {kubecfg}")
 
-        await config.load_kube_config(
-            config_file=kubecfg,
-            client_configuration=self.k8s_config,
-            persist_config=False)
-        logger.info(f"Kubernetes config '{kubecfg}' loaded successfully")
+            await config.load_kube_config(
+                config_file=kubecfg,
+                client_configuration=self.k8s_config,
+                persist_config=False)
+            logger.info(f"Kubernetes config '{kubecfg}' loaded successfully")
         # await self.create_default_namespaces()
 
     async def cleanup(self) -> None:
