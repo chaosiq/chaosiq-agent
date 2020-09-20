@@ -94,6 +94,7 @@ class Jobs:
 
             try:
                 job = Job.parse_obj(body)
+                logger.info(f"Got job '{job.id}' to process")
             except ValidationError as x:
                 logger.error(f"Failed to parse job: {str(x)}")
                 continue
@@ -114,6 +115,7 @@ class Jobs:
             await self.backend.process_job(job=job)
             await self.update_job_status(job, status="processed")
         except Exception as exc:  # noqa: 0703
+            logger.error(f"Failed to handle job {job.id}", exc_info=True)
             await self.update_job_status(
                 job, status="failed", info={"exception": str(exc)})
 

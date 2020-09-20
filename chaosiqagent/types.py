@@ -1,13 +1,15 @@
+import asyncio
 from datetime import datetime
-from typing import Literal, Optional, Dict, Any
+from typing import Literal, Optional, Dict, Any, List
 
 from pydantic import BaseModel, BaseSettings, Field, UUID4, AnyUrl
 from pydantic.fields import Undefined
 
-__all__ = ["Config", "Job", "Backend"]
+__all__ = ["Config", "Job", "Backend", "Futures"]
 
 
 Backend = Literal["null", "kubernetes", "shell"]
+Futures = List[asyncio.Future]
 
 
 class Config(BaseSettings):

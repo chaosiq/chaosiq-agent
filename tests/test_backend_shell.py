@@ -1,7 +1,9 @@
+import json
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch
 
 import pytest
+import respx
 
 from chaosiqagent.agent import Agent
 from chaosiqagent.log import configure_logging
@@ -23,19 +25,30 @@ async def test_load_chaos_binary(capsys, config_path: str):
                 c = load_settings(p.name)
                 configure_logging(c)
 
-        agent = Agent(c)
-        assert agent.backend.__class__.__name__ == "ShellBackend"
+        with patch("chaosiqagent.agent.Jobs", autospec=True):
+            agent = Agent(c)
+            assert agent.backend.__class__.__name__ == "ShellBackend"
+            async with respx.mock:
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
 
-        await agent.setup()
-        assert agent.backend.bin == bin.name
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
 
-        captured = capsys.readouterr()
-        assert \
-            "Backend 'shell' configured with " \
-            f"Chaos Toolkit binary: {bin.name}" in captured.err
+                await agent.setup()
+                assert agent.backend.bin == bin.name
 
-        await agent.cleanup()
-        assert agent.backend.bin is None
+                captured = capsys.readouterr()
+                assert \
+                    "Backend 'shell' configured with " \
+                    f"Chaos Toolkit binary: {bin.name}" in captured.err
+
+                await agent.cleanup()
+                assert agent.backend.bin is None
 
 
 @pytest.mark.asyncio
@@ -49,17 +62,27 @@ async def test_setup_missing_chaos_binary(capsys, config_path: str):
             c = load_settings(p.name)
             configure_logging(c)
 
-        agent = Agent(c)
-        assert agent.backend.__class__.__name__ == "ShellBackend"
+        with patch("chaosiqagent.agent.Jobs", autospec=True):
+            agent = Agent(c)
+            assert agent.backend.__class__.__name__ == "ShellBackend"
+            async with respx.mock:
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
 
-        await agent.setup()
-        assert agent.backend.bin in [None, ""]
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
+                await agent.setup()
+                assert agent.backend.bin in [None, ""]
 
-        captured = capsys.readouterr()
-        assert "'chaos' binary path must be set in config" in captured.err
-        assert "Backend 'shell' configured with " not in captured.err
+                captured = capsys.readouterr()
+                assert "'chaos' binary path must be set in config" in captured.err
+                assert "Backend 'shell' configured with " not in captured.err
 
-        await agent.cleanup()
+                await agent.cleanup()
 
 
 @pytest.mark.asyncio
@@ -74,18 +97,29 @@ async def test_setup_chaos_binary_cannot_be_found(capsys, config_path: str):
             c = load_settings(p.name)
             configure_logging(c)
 
-        agent = Agent(c)
-        assert agent.backend.__class__.__name__ == "ShellBackend"
+        with patch("chaosiqagent.agent.Jobs", autospec=True):
+            agent = Agent(c)
+            assert agent.backend.__class__.__name__ == "ShellBackend"
 
-        await agent.setup()
-        assert agent.backend.bin == '/usr/bin/chaos'
+            async with respx.mock:
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
 
-        captured = capsys.readouterr()
-        assert "'chaos' binary path must be set in config" not in captured.err
-        assert "'chaos' binary path cannot be found" in captured.err
-        assert "Backend 'shell' configured with " not in captured.err
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
+                await agent.setup()
+                assert agent.backend.bin == '/usr/bin/chaos'
 
-        await agent.cleanup()
+                captured = capsys.readouterr()
+                assert "'chaos' binary path must be set in config" not in captured.err
+                assert "'chaos' binary path cannot be found" in captured.err
+                assert "Backend 'shell' configured with " not in captured.err
+
+                await agent.cleanup()
 
 
 @pytest.mark.asyncio
@@ -101,13 +135,24 @@ async def test_process_job(
             p.seek(0)
             c = load_settings(p.name)
 
-    agent = Agent(c)
-    await agent.setup()
+    with patch("chaosiqagent.agent.Jobs", autospec=True):
+        agent = Agent(c)
+        async with respx.mock:
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
 
-    await agent.backend.process_job(job)
-    subprocess_run.assert_called()
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
+            await agent.setup()
 
-    await agent.cleanup()
+            await agent.backend.process_job(job)
+            subprocess_run.assert_called()
+
+            await agent.cleanup()
 
 
 @pytest.mark.asyncio
@@ -123,18 +168,29 @@ async def test_process_experiment(
             p.seek(0)
             c = load_settings(p.name)
 
-    agent = Agent(c)
-    await agent.setup()
+    with patch("chaosiqagent.agent.Jobs", autospec=True):
+        agent = Agent(c)
+        async with respx.mock:
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
 
-    await agent.backend.process_job(experiment)
-    subprocess_run.assert_called()
-    cmd = ' '.join(subprocess_run.call_args_list[0].args[0])
-    assert "chaos" in cmd
-    assert "run" in cmd
-    assert "--settings" in cmd
-    assert "https://console.example.com/assets/experiments/" in cmd
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
+            await agent.setup()
 
-    await agent.cleanup()
+            await agent.backend.process_job(experiment)
+            subprocess_run.assert_called()
+            cmd = ' '.join(subprocess_run.call_args_list[0].args[0])
+            assert "chaos" in cmd
+            assert "run" in cmd
+            assert "--settings" in cmd
+            assert "https://console.example.com/assets/experiments/" in cmd
+
+            await agent.cleanup()
 
 
 @pytest.mark.asyncio
@@ -150,18 +206,29 @@ async def test_process_verification(
             p.seek(0)
             c = load_settings(p.name)
 
-    agent = Agent(c)
-    await agent.setup()
+    with patch("chaosiqagent.agent.Jobs", autospec=True):
+        agent = Agent(c)
+        async with respx.mock:
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
 
-    await agent.backend.process_job(verification)
-    subprocess_run.assert_called()
-    cmd = ' '.join(subprocess_run.call_args_list[0].args[0])
-    assert "chaos" in cmd
-    assert "verify" in cmd
-    assert "--settings" in cmd
-    assert "https://console.example.com/assets/verifications/" in cmd
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
+            await agent.setup()
 
-    await agent.cleanup()
+            await agent.backend.process_job(verification)
+            subprocess_run.assert_called()
+            cmd = ' '.join(subprocess_run.call_args_list[0].args[0])
+            assert "chaos" in cmd
+            assert "verify" in cmd
+            assert "--settings" in cmd
+            assert "https://console.example.com/assets/verifications/" in cmd
+
+            await agent.cleanup()
 
 
 @pytest.mark.asyncio
@@ -180,12 +247,23 @@ async def test_process_job_without_tls(
             p.seek(0)
             c = load_settings(p.name)
 
-    agent = Agent(c)
-    await agent.setup()
+    with patch("chaosiqagent.agent.Jobs", autospec=True):
+        agent = Agent(c)
+        async with respx.mock:
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
 
-    await agent.backend.process_job(verification)
-    subprocess_run.assert_called()
-    cmd = ' '.join(subprocess_run.call_args_list[0].args[0])
-    assert "--no-verify-tls" in cmd
+            respx.post(
+                "https://console.example.com/agent/actions",
+                content=json.dumps({})
+            )
+            await agent.setup()
 
-    await agent.cleanup()
+            await agent.backend.process_job(verification)
+            subprocess_run.assert_called()
+            cmd = ' '.join(subprocess_run.call_args_list[0].args[0])
+            assert "--no-verify-tls" in cmd
+
+            await agent.cleanup()

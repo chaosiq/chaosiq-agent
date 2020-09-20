@@ -50,3 +50,17 @@ def test_agent_gracefully_terminates_on_signal(
         req_body = json.loads(request.read())
         actions.append(req_body["action"])
     assert set(actions) == set(["register", "connect", "disconnect"])
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_agent_fails_connecting(config_path: str):
+    c = load_settings(config_path)
+
+    respx.post(
+        "https://console.example.com/agent/actions",
+        content=httpx.HTTPError("BOOOM", request=None)
+    )
+
+    agent = Agent(c)
+    await agent.register()

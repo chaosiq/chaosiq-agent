@@ -38,10 +38,9 @@ RUN adduser --disabled-password --home /home/svc svc
 USER svc
 WORKDIR /home/svc
 ENV PORT 8000
-ENV BUCKET_CONFIG_PATH "${BUCKET_CONFIG_PATH}"
 
 COPY LICENSE LICENSE
 COPY --chown=svc:svc --from=cideps /home/svc/.venv-deploy .venv-deploy
 
 ENTRYPOINT ["/bin/sh"]
-CMD ["-c", ".venv-deploy/bin/chaosiqagent run --config ${BUCKET_CONFIG_PATH}"]
+CMD ["-c", ".venv-deploy/bin/chaosiq-agent run --config /etc/chaosiq/agent/.env"]

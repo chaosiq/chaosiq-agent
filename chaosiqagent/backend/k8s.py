@@ -29,10 +29,17 @@ class K8SBackend(BaseBackend):
         self.k8s_config = Configuration()
 
     async def setup(self) -> None:
+        kubecfg = os.path.expanduser(
+            os.environ.get('KUBECONFIG', '~/.kube/config'))
+        if not os.path.isfile(kubecfg):
+            raise RuntimeError(
+                f"Cannot locate a valid kubeconfig at: {kubecfg}")
+
         await config.load_kube_config(
-            config_file=os.environ.get('KUBECONFIG', '~/.kube/config'),
+            config_file=kubecfg,
             client_configuration=self.k8s_config,
             persist_config=False)
+        logger.info(f"Kubernetes config '{kubecfg}' loaded successfully")
         # await self.create_default_namespaces()
 
     async def cleanup(self) -> None:
@@ -71,33 +78,33 @@ class K8SBackend(BaseBackend):
             job, verify_tls=self.config.verify_tls,
             settings_name=settings_name)
 
-        k8s_client = ApiClient(configuration=self.k8s_config)
+        async with ApiClient(configuration=self.k8s_config) as k8s_client:
+            # create the secret containing the CTK settings
+            try:
+                api = core_v1_api.CoreV1Api(k8s_client)
+                secret = await api.create_namespaced_secret(
+                    namespace="chaostoolkit-run", body=yaml.safe_load(secret))
+                assert secret is not None
+            except Exception:  # pragma: no cover
+                logger.exception("Cannot create the secret on K8s")
+                raise
 
-        # create the secret containing the CTK settings
-        try:
-            api = core_v1_api.CoreV1Api(k8s_client)
-            secret = await api.create_namespaced_secret(
-                namespace="chaostoolkit-run", body=yaml.safe_load(secret))
-            assert secret is not None
-        except Exception:  # pragma: no cover
-            logger.exception("Cannot create the secret on K8s")
-            raise
-
-        # create the experiment custom resource
-        try:
-            api = custom_objects_api.CustomObjectsApi(k8s_client)
-            co = await api.create_namespaced_custom_object(
-                # group, version, namespace, plural, body
-                "chaostoolkit.org",
-                "v1",
-                "chaostoolkit-crd",
-                "chaosexperiments",
-                yaml.safe_load(experiment),
-            )
-            assert co is not None
-        except Exception:  # pragma: no cover
-            logger.exception("Cannot create the experiment on K8s")
-            raise
+            # create the experiment custom resource
+            try:
+                api = custom_objects_api.CustomObjectsApi(k8s_client)
+                co = await api.create_namespaced_custom_object(
+                    # group, version, namespace, plural, body
+                    "chaostoolkit.org",
+                    "v1",
+                    "chaostoolkit-crd",
+                    "chaosexperiments",
+                    yaml.safe_load(experiment),
+                )
+                assert co is not None
+                logger.info("CRO submitted to Chaos Toolkit operator")
+            except Exception:  # pragma: no cover
+                logger.exception("Cannot create the experiment on K8s")
+                raise
 
 
 ###############################################################################

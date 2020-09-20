@@ -9,6 +9,7 @@ from .client import get_client
 from .job import Jobs
 from .log import logger
 from .types import Config
+from .utils import raise_if_errored
 
 __all__ = ["Agent"]
 
@@ -26,27 +27,30 @@ class Agent:
         return self._running
 
     async def setup(self) -> None:
-        await asyncio.wait([
+        futures = await asyncio.wait([
             self.register(),
             self.connect(),
             self.jobs.setup(),
             self.backend.setup()
         ], return_when=asyncio.ALL_COMPLETED)
+        raise_if_errored(*futures)
 
     async def cleanup(self) -> None:
         """
         Gracefully cleaning up the jobs consumer and its backend.
         """
-        await asyncio.wait([
+        futures = await asyncio.wait([
             self.disconnect(),
             self.jobs.cleanup(),
             self.backend.cleanup()
         ], return_when=asyncio.ALL_COMPLETED)
         self._running = False
+        raise_if_errored(*futures)
 
     async def run(self) -> None:
         logger.info("Starting agent...")
         await self.setup()
+        logger.info("Agent components configured")
 
         # handle SIG* as gracefully as we can so that jobs are cleanly
         # cancelled

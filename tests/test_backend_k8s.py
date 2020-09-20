@@ -1,9 +1,11 @@
+import json
 import os
 from tempfile import NamedTemporaryFile
 from unittest.mock import patch, AsyncMock
 import yaml
 
 import pytest
+import respx
 
 from chaosiqagent.agent import Agent
 from chaosiqagent.settings import load_settings
@@ -42,6 +44,42 @@ current-context: dev
 
 
 @pytest.mark.asyncio
+async def test_fails_when_kubeconfig_cannot_be_found(config_path: str):
+    with NamedTemporaryFile() as f:
+        f.write(BASIC_CONFIG)
+        f.seek(0)
+        os.environ["KUBECONFIG"] = "/tmp/somewhere"
+
+        with open(config_path) as o:
+            with NamedTemporaryFile() as p:
+                r = o.read()
+                r = r.replace("null", "kubernetes")
+                p.write(r.encode('utf-8'))
+                p.seek(0)
+                c = load_settings(p.name)
+
+        with patch("chaosiqagent.agent.Jobs", autospec=True):
+            agent = Agent(c)
+            assert agent.backend.__class__.__name__ == "K8SBackend"
+
+            async with respx.mock:
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
+
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
+
+                with pytest.raises(RuntimeError):
+                    await agent.setup()
+        del os.environ["KUBECONFIG"]
+
+
+
+@pytest.mark.asyncio
 async def test_load_kube_config_at_default_location(config_path: str):
     with NamedTemporaryFile() as f:
         f.write(BASIC_CONFIG)
@@ -56,15 +94,27 @@ async def test_load_kube_config_at_default_location(config_path: str):
                 p.seek(0)
                 c = load_settings(p.name)
 
-        agent = Agent(c)
-        assert agent.backend.__class__.__name__ == "K8SBackend"
+        with patch("chaosiqagent.agent.Jobs", autospec=True):
+            agent = Agent(c)
+            assert agent.backend.__class__.__name__ == "K8SBackend"
 
-        await agent.setup()
-        assert agent.backend.k8s_config.host == "https://example.com"
+            async with respx.mock:
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
 
-        await agent.cleanup()
-        assert agent.backend.k8s_config is None
-        del os.environ["KUBECONFIG"]
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
+
+                await agent.setup()
+                assert agent.backend.k8s_config.host == "https://example.com"
+
+                await agent.cleanup()
+                assert agent.backend.k8s_config is None
+            del os.environ["KUBECONFIG"]
 
 
 
@@ -89,18 +139,31 @@ async def test_load_kube_config_process_job(
                 p.seek(0)
                 c = load_settings(p.name)
 
-        agent = Agent(c)
-        await agent.setup()
+        with patch("chaosiqagent.agent.Jobs", autospec=True):
+            agent = Agent(c)
 
-        await agent.backend.process_job(job)
-        k8s_client.assert_called()
-        create_secret.assert_awaited()
-        assert create_secret.call_count == 1
-        create_custom_object.assert_awaited()
-        assert create_custom_object.call_count == 1
+            async with respx.mock:
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
 
-        await agent.cleanup()
-        assert agent.backend.k8s_config is None
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
+
+                await agent.setup()
+
+                await agent.backend.process_job(job)
+                k8s_client.assert_called()
+                create_secret.assert_awaited()
+                assert create_secret.call_count == 1
+                create_custom_object.assert_awaited()
+                assert create_custom_object.call_count == 1
+
+                await agent.cleanup()
+                assert agent.backend.k8s_config is None
         del os.environ["KUBECONFIG"]
 
 
@@ -111,7 +174,7 @@ def test_render_experiment_manifest(job):
     # ensure yaml is valid
     try:
         yaml.safe_load(manifest)
-    except yaml.YAMLError as exc:
+    except yaml.YAMLError:
         pytest.fail("manifest YAML is not valid")
 
     # ensure all fields have been replaced
