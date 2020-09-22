@@ -13,7 +13,7 @@ spec:
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  name: allow-chaostoolkit-to-cluster-dns
+  name: allow-chaosiq-agent-to-cluster-dns
   namespace: chaosiq-agent
 spec:
   policyTypes:
@@ -33,7 +33,7 @@ spec:
 kind: NetworkPolicy
 apiVersion: networking.k8s.io/v1
 metadata:
-  name: allow-chaostoolkit-to-secured-external
+  name: allow-chaosiq-agent-to-secured-external
   namespace: chaosiq-agent
 spec:
   policyTypes:
