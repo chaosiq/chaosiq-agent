@@ -1,0 +1,58 @@
+name: Docker
+
+on:
+  push:
+    # Publish `$default-branch` as Docker `latest` image.
+    branches:
+      - $default-branch
+
+    # Publish `1.2.3` tags as releases.
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - '[0-9]+.[0-9]+.[0-9]+rc[0-9]+'
+
+  # Run tests for any PRs.
+  pull_request:
+
+env:
+  IMAGE_NAME: agent
+
+jobs:
+  build-push-image:
+    runs-on: ubuntu-16.04
+    if: github.event_name == 'push'
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build the Docker image
+      run: docker build . --file Dockerfile --tag $IMAGE_NAME
+
+    - name: Log into Docker Hub
+      env:
+        DOCKER_USER_NAME: chaosiq
+        DOCKER_PWD: ${{ secrets.DOCKER_PWD }}
+      run: |
+        docker login -u ${DOCKER_USER_NAME} -p ${DOCKER_PWD}
+
+    - name: Push image to Docker Hub Registry
+      run: |
+        IMAGE_ID=chaosiq/$IMAGE_NAME
+
+        # Change all uppercase to lowercase
+        IMAGE_ID=$(echo $IMAGE_ID | tr '[A-Z]' '[a-z]')
+
+        # Strip git ref prefix from version
+        VERSION=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+
+        # Strip "v" prefix from tag name
+        [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
+
+        # Use Docker `latest` tag convention
+        [ "$VERSION" == "$default-branch" ] && VERSION=latest
+
+        echo IMAGE_ID=$IMAGE_ID
+        echo VERSION=$VERSION
+
+        docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
+        docker push $IMAGE_ID:$VERSION
