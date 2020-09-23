@@ -10,11 +10,7 @@ RUN adduser --disabled-password --home /home/svc --uid 1001 --ingroup svc svc
 USER svc
 WORKDIR /home/svc
 COPY requirements.txt requirements.txt
-COPY requirements-dev.txt requirements-dev.txt
 
-RUN python3 -m venv .venv-build-and-test
-RUN .venv-build-and-test/bin/pip install -U pip
-RUN .venv-build-and-test/bin/pip install -r requirements.txt -r requirements-dev.txt
 RUN python3 -m venv .venv-deploy
 RUN .venv-deploy/bin/pip install -r requirements.txt
 
@@ -22,9 +18,6 @@ USER root
 COPY . .
 RUN chown svc:svc .
 USER svc
-RUN .venv-build-and-test/bin/pip install -e .
-RUN .venv-build-and-test/bin/pylama chaosiqagent
-RUN .venv-build-and-test/bin/pytest
 RUN .venv-deploy/bin/pip install -U pip wheel && \
     .venv-deploy/bin/python setup.py bdist_wheel && \
     .venv-deploy/bin/pip install dist/*.whl
