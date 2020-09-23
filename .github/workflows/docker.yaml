@@ -4,7 +4,8 @@ on:
   push:
     # Publish `$default-branch` as Docker `latest` image.
     branches:
-      - $default-branch
+      # - $default-branch
+      - master
 
     # Publish `1.2.3` tags as releases.
     tags:
@@ -18,6 +19,13 @@ env:
   IMAGE_NAME: agent
 
 jobs:
+  dummy:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v2
+    - run: echo "Hello From Github Action"
+
+
   build-push-image:
     runs-on: ubuntu-16.04
     if: github.event_name == 'push'
@@ -49,7 +57,8 @@ jobs:
         [[ "${{ github.ref }}" == "refs/tags/"* ]] && VERSION=$(echo $VERSION | sed -e 's/^v//')
 
         # Use Docker `latest` tag convention
-        [ "$VERSION" == "$default-branch" ] && VERSION=latest
+        # [ "$VERSION" == "$default-branch" ] && VERSION=latest
+        [ "$VERSION" == "master" ] && VERSION=latest
 
         echo IMAGE_ID=$IMAGE_ID
         echo VERSION=$VERSION
