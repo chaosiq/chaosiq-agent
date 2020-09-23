@@ -4,6 +4,6 @@ __all__ = ["__version__"]
 
 
 try:
-    __version__ = version(__name__)
+    __version__ = version("chaosiq-agent")
 except PackageNotFoundError:
     __version__ = 'unknown'
