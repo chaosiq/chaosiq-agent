@@ -18,6 +18,11 @@ env:
   IMAGE_NAME: agent
 
 jobs:
+  debug:
+    runs-on: ubuntu-16.04
+    steps:
+    - run: cat /etc/resolv.conf
+
   run-tests:
     runs-on: ubuntu-16.04
     steps:
