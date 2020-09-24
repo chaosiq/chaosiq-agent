@@ -15,7 +15,7 @@ from chaosiqagent.agent import Agent
 from chaosiqagent.log import configure_logging
 from chaosiqagent.settings import load_settings
 
-@pytest.mark.skip("This unit test does not work inside docker image")
+
 @respx.mock
 @pytest.mark.parametrize('sig', [signal.SIGTERM, signal.SIGINT, signal.SIGHUP])
 def test_agent_gracefully_terminates_on_signal(
@@ -52,8 +52,8 @@ def test_agent_gracefully_terminates_on_signal(
     assert set(actions) == set(["register", "connect", "disconnect"])
 
 
-@pytest.mark.asyncio
 @respx.mock
+@pytest.mark.asyncio
 async def test_agent_fails_connecting(config_path: str):
     c = load_settings(config_path)
 
