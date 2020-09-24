@@ -52,8 +52,8 @@ def test_agent_gracefully_terminates_on_signal(
     assert set(actions) == set(["register", "connect", "disconnect"])
 
 
-@respx.mock
 @pytest.mark.asyncio
+@respx.mock
 async def test_agent_fails_connecting(config_path: str):
     c = load_settings(config_path)
 
