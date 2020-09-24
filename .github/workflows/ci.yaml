@@ -22,9 +22,10 @@ jobs:
     runs-on: ubuntu-16.04
     steps:
     - run: python --version
-    - run: |
-      chmod 644 /etc/hosts
-      chmod 644 /etc/resolve.conf
+    - name: Add permissions to DNS lookup files
+      run: |
+        chmod 644 /etc/hosts
+        chmod 644 /etc/resolve.conf
     - run: echo "127.0.0.1 console.example.com" >> /etc/resolv.conf
     - run: cat /etc/resolv.conf
 
