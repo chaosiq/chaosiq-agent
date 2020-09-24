@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 from typing import Literal, Optional, Dict, Any, List
 
-from pydantic import BaseModel, BaseSettings, Field, UUID4, AnyUrl
+from pydantic import BaseModel, BaseSettings, Field, UUID4, AnyUrl, PositiveInt
 from pydantic.fields import Undefined
 
 __all__ = ["Config", "Job", "Backend", "Futures"]
@@ -21,6 +21,7 @@ class Config(BaseSettings):
         "null", env='AGENT_BACKEND')
     verify_tls: bool = Field(False, env='VERIFY_TLS')
     chaos_binary: str = Field(Undefined, env='CHAOS_BINARY')
+    heartbeat_interval: PositiveInt = Field(900, env='HEARTBEAT_INTERVAL')
 
 
 class Job(BaseModel):

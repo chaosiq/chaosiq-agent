@@ -7,6 +7,7 @@ from . import __version__ as version
 from .backend import get_backend
 from .client import get_client
 from .job import Jobs
+from .heartbeat import Heartbeat
 from .log import logger
 from .types import Config
 from .utils import raise_if_errored
@@ -21,6 +22,7 @@ class Agent:
         self.jobs = Jobs(config, self.backend)
         self._running = False
         self.action_url = "/agent/actions"
+        self.heartbeat = Heartbeat(config)
 
     @property
     def running(self) -> bool:
@@ -31,7 +33,8 @@ class Agent:
             self.register(),
             self.connect(),
             self.jobs.setup(),
-            self.backend.setup()
+            self.backend.setup(),
+            self.heartbeat.setup(),
         ], return_when=asyncio.ALL_COMPLETED)
         raise_if_errored(*futures)
 
@@ -42,7 +45,8 @@ class Agent:
         futures = await asyncio.wait([
             self.disconnect(),
             self.jobs.cleanup(),
-            self.backend.cleanup()
+            self.backend.cleanup(),
+            self.heartbeat.cleanup(),
         ], return_when=asyncio.ALL_COMPLETED)
         self._running = False
         raise_if_errored(*futures)
