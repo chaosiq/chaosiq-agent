@@ -36,7 +36,7 @@ jobs:
     - name: Run tests
       run: |
         pip install -e .
-        pytest
+        pytest -s
 
   build-docker-image:
     runs-on: ubuntu-16.04
