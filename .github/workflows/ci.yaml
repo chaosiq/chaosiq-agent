@@ -36,7 +36,7 @@ jobs:
     - name: Run tests
       run: |
         pip install -e .
-        pytest -s
+        pytest -s -k test_agent_gracefully_terminates_on_signal
 
   build-docker-image:
     runs-on: ubuntu-16.04
