@@ -16,7 +16,6 @@ from chaosiqagent.log import configure_logging
 from chaosiqagent.settings import load_settings
 
 
-@pytest.mark.skip("Disable for now, does not pass on GitHub Actions CI")
 @respx.mock
 @pytest.mark.parametrize('sig', [signal.SIGTERM, signal.SIGINT, signal.SIGHUP])
 def test_agent_gracefully_terminates_on_signal(
