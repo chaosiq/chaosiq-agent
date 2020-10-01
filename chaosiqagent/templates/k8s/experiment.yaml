@@ -10,7 +10,7 @@ metadata:
 spec:
   namespace: chaostoolkit-run
   pod:
-    image: chaosiq/chaostoolkit
+    image: {ctk_docker_image}
     chaosArgs:
     - {chaos_cmd}
     - {asset_url}

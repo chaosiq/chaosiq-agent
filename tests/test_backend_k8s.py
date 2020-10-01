@@ -8,6 +8,7 @@ import pytest
 import respx
 
 from chaosiqagent.agent import Agent
+from chaosiqagent.log import configure_logging
 from chaosiqagent.settings import load_settings
 from chaosiqagent.backend.k8s import render_experiment_manifest, \
     render_secret_manifest
@@ -205,3 +206,32 @@ def test_render_secret_manifest():
     # ensure all fields have been replaced
     assert '{' not in manifest
     assert '}' not in manifest
+
+
+@pytest.mark.asyncio
+async def test_setup_missing_ctk_docker_image(capsys, config_path: str):
+    with open(config_path) as o:
+        with NamedTemporaryFile() as p:
+            r = o.read()
+            r = r.replace('AGENT_BACKEND="null"', 'AGENT_BACKEND="kubernetes"')
+            r = r.replace('CTK_DOCKER_IMAGE="chaosiq/chaostoolkit"', 'CTK_DOCKER_IMAGE=')
+            p.write(r.encode('utf-8'))
+            p.seek(0)
+            c = load_settings(p.name)
+            configure_logging(c)
+
+        with patch("chaosiqagent.agent.Jobs", autospec=True):
+            agent = Agent(c)
+            assert agent.backend.__class__.__name__ == "K8SBackend"
+            async with respx.mock:
+                respx.post(
+                    "https://console.example.com/agent/actions",
+                    content=json.dumps({})
+                )
+
+                await agent.setup()
+
+                captured = capsys.readouterr()
+                assert "'CTK_DOCKER_IMAGE' is not specified in config" in captured.err
+
+                await agent.cleanup()

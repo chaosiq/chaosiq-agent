@@ -20,8 +20,12 @@ class Config(BaseSettings):
     agent_backend: Backend = Field(
         "null", env='AGENT_BACKEND')
     verify_tls: bool = Field(False, env='VERIFY_TLS')
+    # This binary is used for shell backend
     chaos_binary: str = Field(Undefined, env='CHAOS_BINARY')
     heartbeat_interval: PositiveInt = Field(900, env='HEARTBEAT_INTERVAL')
+    # Default docker image containing the Chaos Toolkit (K8s)
+    ctk_docker_image: str = Field(
+        'chaosiq/chaostoolkit', env='CTK_DOCKER_IMAGE')
 
 
 class Job(BaseModel):

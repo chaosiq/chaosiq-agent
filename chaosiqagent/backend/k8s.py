@@ -31,6 +31,12 @@ class K8SBackend(BaseBackend):
         self.k8s_config = Configuration()
 
     async def setup(self) -> None:
+        if not self.config.ctk_docker_image:
+            logger.critical("'CTK_DOCKER_IMAGE' is not specified in config!")
+            return
+
+        logger.info(f"Using CTK docker image '{self.config.ctk_docker_image}'")
+
         if os.path.isfile(SERVICE_TOKEN_FILENAME):  # pragma: no cover
             logger.info("Running from a Kubernetes pod")
             self.k8s_config = load_incluster_config()
@@ -82,8 +88,11 @@ class K8SBackend(BaseBackend):
         secret = render_secret_manifest(
             settings, settings_name=settings_name, labels=labels)
         experiment = render_experiment_manifest(
-            job, verify_tls=self.config.verify_tls,
-            settings_name=settings_name)
+            job,
+            verify_tls=self.config.verify_tls,
+            settings_name=settings_name,
+            ctk_docker_image=self.config.ctk_docker_image,
+        )
 
         async with ApiClient(configuration=self.k8s_config) as k8s_client:
             # create the secret containing the CTK settings
@@ -121,6 +130,7 @@ class K8SBackend(BaseBackend):
 def render_experiment_manifest(
         job: Job, verify_tls: bool = True,
         settings_name: str = SETTINGS_NAME,
+        ctk_docker_image: str = 'chaosiq/chaostoolkit',
         ) -> str:
     with open(os.path.join(K8S_TEMPLATES, "experiment.yaml")) as f:
         template = f.read()
@@ -132,6 +142,7 @@ def render_experiment_manifest(
             # the leading dash indicates the optional list item for chaos args
             no_verify_tls='- --no-verify-tls' if not verify_tls else '',
             settings_name=settings_name,
+            ctk_docker_image=ctk_docker_image,
             **labels,
         )
         return experiment

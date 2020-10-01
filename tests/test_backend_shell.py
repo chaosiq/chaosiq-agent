@@ -34,11 +34,6 @@ async def test_load_chaos_binary(capsys, config_path: str):
                     content=json.dumps({})
                 )
 
-                respx.post(
-                    "https://console.example.com/agent/actions",
-                    content=json.dumps({})
-                )
-
                 await agent.setup()
                 assert agent.backend.bin == bin.name
 
