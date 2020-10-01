@@ -19,7 +19,7 @@ class Config(BaseSettings):
     agent_access_token: str = Field(..., env='AGENT_ACCESS_TOKEN')
     agent_backend: Backend = Field(
         "null", env='AGENT_BACKEND')
-    verify_tls: bool = Field(False, env='VERIFY_TLS')
+    verify_tls: bool = Field(True, env='VERIFY_TLS')
     # This binary is used for shell backend
     chaos_binary: str = Field(Undefined, env='CHAOS_BINARY')
     heartbeat_interval: PositiveInt = Field(900, env='HEARTBEAT_INTERVAL')
