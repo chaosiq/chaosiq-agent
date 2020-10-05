@@ -1,6 +1,8 @@
 # ChaosIQ Agent for running Chaos Toolkit experiments
 
 [![Build Status](https://github.com/chaosiq/chaosiq-agent/workflows/CI/badge.svg)](https://github.com/chaosiq/chaosiq-agent/actions)
+[![Docker Pulls](https://img.shields.io/docker/pulls/chaosiq/agent)](https://hub.docker.com/r/chaosiq/agent)
+
 ## Overview
 
 This repository contains the agent that listens for Chaos Toolkit experiments
