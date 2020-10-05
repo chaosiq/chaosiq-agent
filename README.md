@@ -1,11 +1,68 @@
-# Welcome to the chaosiq-agent project
+# ChaosIQ Agent for running Chaos Toolkit experiments
 
 ## Overview
 
-This provides is the ChaosIQ agent which allows to automatically schedule
-Chaos Toolkit experiments as jobs in your environment.
+This repository contains the agent that listens for Chaos Toolkit experiments
+to run, from the ChaosIQ console, dispatched to the [Kubernetes operator][k8s-crd].
 
-## Requirements
+[k8s-crd]: https://github.com/chaostoolkit-incubator/kubernetes-crd
+
+## Pre-requisite
+
+Prior to the installation, you need to declare the agent on [ChaosIQ][console]:
+- log into [ChaosIQ][console],
+- go to the *Agents* page,
+- add a new agent,
+- reveal its token from the agents list and copy it.
+
+The Agent token is necessary for the installation steps described below.
+
+[console]: https://console.chaosiq.io/
+
+## How to deploy?
+
+The agent is intended to be deployed within your Kubernetes cluster alongside
+the [Kubernetes operator][k8s-crd].
+
+We suggest you use [Kustomize][kustomize] to generate the manifest to apply.
+
+[kustomize]: https://github.com/kubernetes-sigs/kustomize
+
+First, create the configuration file using the sample:
+
+```
+$ cp deploy/k8s/kustomize/overlays/generic/data/.env.sample deploy/k8s/kustomize/overlays/generic/data/.env
+```
+
+Then, edit the `.env` file and paste your agent token into the
+`AGENT_ACCESS_TOKEN` field
+```
+AGENT_ACCESS_TOKEN=<paste your token here>
+```
+
+Finally, simply run the following command:
+
+```
+$ kustomize build deploy/k8s/kustomize/overlays/generic | kubectl apply -f -
+```
+
+If everything goes to plan, you should have the agent running:
+
+```
+$ kubectl -n chaosiq-agent logs -l app=chaosiq-agent
+```
+
+
+### Use a custom Chaos Toolkit docker image
+
+The default docker image used to run the experiment can be customized at
+installation.
+
+To do so, simply edit the configuration file
+`deploy/k8s/kustomize/overlays/generic/data/.env` and change the value of the
+`CTK_DOCKER_IMAGE` field.
+
+## Contribute
 
 ### Runtime Requirements
 
@@ -46,7 +103,7 @@ $ source .venv/bin/activate
 Run the last command everytime you create a new shell so you are in the right
 Python environment.
 
-## Run the service locally
+### Run the service locally
 
 To run the application locally, simply run the following commands:
 
@@ -55,7 +112,7 @@ $ source .venv/bin/activate
 $ chaosiq-agent run --config=config/.env.sample
 ```
 
-## Run the tests
+### Run the tests
 
 To run the tests:
 
@@ -67,7 +124,7 @@ $ pytest
 The tests expects 100% coverage to succeed. Please change the setup.cfg file
 to remove/reduce that constraint.
 
-## Run the linter
+### Run the linter
 
 To run the tests:
 
