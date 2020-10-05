@@ -1,5 +1,6 @@
 # ChaosIQ Agent for running Chaos Toolkit experiments
 
+[![Build Status](https://github.com/chaosiq/chaosiq-agent/workflows/CI/badge.svg)](https://github.com/chaosiq/chaosiq-agent/actions)
 ## Overview
 
 This repository contains the agent that listens for Chaos Toolkit experiments
