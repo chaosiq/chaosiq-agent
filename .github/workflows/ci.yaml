@@ -78,3 +78,16 @@ jobs:
 
         docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
         docker push $IMAGE_ID:$VERSION
+
+  notify-to-slack:
+    runs-on: ubuntu-16.04
+    needs:
+      - run-tests
+      - build-docker-image
+    if: always()
+    steps:
+    - name: Slack Notification
+      uses: Gamesight/slack-workflow-status@master
+      with:
+        repo_token: ${{secrets.GITHUB_TOKEN}}
+        slack_webhook_url: ${{secrets.SLACK_WEBHOOK_URL}}
